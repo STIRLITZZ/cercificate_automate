@@ -1,38 +1,48 @@
-from PIL import Image, ImageDraw, ImageFont
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from PIL import Image
 import os
-from pdf2image import convert_from_path
-
 
 list_of_names = []
 
 def cleanup_data():
-    with open('nume_m.txt', encoding='utf-8') as file:
+    with open('nume_f.txt', encoding='utf-8') as file:
         for line in file:
-            list_of_names.append(line.strip())
+            name = line.strip()
+            if name:
+                list_of_names.append(name)
 
 def generate_certificates():
-    output_dir = 'cerceficat_generat_DOMNULUI'
+    output_dir = 'certificate_generate_DOMNULUI'
     os.makedirs(output_dir, exist_ok=True)
 
+    pdfmetrics.registerFont(TTFont('LoraBold', 'Lora-Bold.ttf'))  # înlocuiește cu 'arial.ttf' dacă e cazul
+
+    image_path = 'Certificat sablon DOMNULUI.png'
+    background = ImageReader(image_path)
+
+    # Află dimensiunea imaginii
+    image = Image.open(image_path)
+    page_width, page_height = image.size  # 2000 x 1414
+
     for name in list_of_names:
-        image = Image.open('Certificat sablon DOMNULUI.png')
-        draw = ImageDraw.Draw(image)
+        filename = os.path.join(output_dir, f"{name.upper()}.pdf")
+        c = canvas.Canvas(filename, pagesize=(page_width, page_height))
 
-        font = ImageFont.truetype("Lora-Bold.ttf", 120)  # sau "arial.ttf"
+        # Fundalul
+        c.drawImage(background, 0, 0, width=page_width, height=page_height)
 
-        # Obține dimensiunile textului
-        bbox = draw.textbbox((0, 0), name.upper(), font=font)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
+        # Scrierea numelui centrat
+        font_size = 90
+        c.setFont("LoraBold", font_size)
+        text_width = pdfmetrics.stringWidth(name.upper(), "LoraBold", font_size)
+        x = (page_width - text_width) / 2
+        y = 600  # poziția verticală — o poți ajusta
 
-        # Calculează poziția pentru centrare
-        image_width, image_height = image.size
-        x = (image_width - text_width) // 2
-        y = 700  # ajustează dacă vrei mai sus/jos
-
-        draw.text((x, y), name.upper(), font=font, fill=(0, 0, 0))
-
-        image.save(f'{output_dir}/{name.upper()}.pdf', "PDF", resolution=100.0)
+        c.drawString(x, y, name.upper())
+        c.save()
 
 cleanup_data()
 generate_certificates()
